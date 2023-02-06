@@ -2,8 +2,8 @@
  :builds
         {:app
                {:target     :browser
-              ;;   :output-dir "docs/js"
-                :output-dir "target/cljsbuild/public/js"
+                :output-dir "docs/js"
+              ;;   :output-dir "target/cljsbuild/public/js"
                 :asset-path "/js"
                 :modules    {:app {:entries [import-test.app]}}
 

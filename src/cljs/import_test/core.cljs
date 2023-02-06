@@ -4,7 +4,7 @@
             [reagent.core :as r]
             [reagent.dom :as rdom]))
 
-(defonce session (r/atom {}))
+(defonce session (r/atom {:hide? true}))
 
 
 (defn fetch-docs! [url token]
@@ -12,7 +12,6 @@
                              (swap! session  assoc :api response))
                   ;; :params {:ids "771:41805"}
                   :response-format :json
-                  ;; :headers {:X-FIGMA-TOKEN (str "figd_S6tiC_L9TQDKvKq1BUrrbC4AFUglk3W2QcudPEHa")}
                   :headers {:X-FIGMA-TOKEN (str token)}
                   :keywords? true}))
 
@@ -99,18 +98,19 @@
          type :type
          parent-position :absoluteBoundingBox} node
 ;; (gradient->css (-> node :fills last))
-        styles (apply conj (background->css node)  (borders node) (bounds->css node))
-
+        style (apply conj (background->css node)  (borders node) (bounds->css node))
+        node-id (str (:id node))
+        styles  (if (= node-id (str (-> @session :api :nodes vals first :document :id))) (assoc style :top 0 :left 0) style)
         render-child-fn (fn [{:keys [children]}]
                           (if-not (empty? children)
                             (map #(type->element (assoc % :parent-x (:x parent-position) :parent-y (:y parent-position))) children)))]
-    (println (node->fonts node))
+    (println styles)
 
     (case type
       "DOCUMENT" [:<> {:id id} (render-child-fn node)]
       "COMPONENT" [:div {:key id
                          :id id
-                         :style (-> styles (dissoc :top :left))} (render-child-fn node)]
+                         :style styles} (render-child-fn node)]
       "RECTANGLE" [:div {:key id
                          :id id
                          :style styles} (render-child-fn node)]
@@ -143,18 +143,22 @@
 
 (defn main []
   (r/create-class {:reagent-render (fn [_]
-                                     [:<>
-                                      [:div.center 
-                                       [:button.primary "Import API"]]
-                                      (when-not (:api @session) [:div {:class "modal hide"}
-                                                                 [:div {:class "dialog"}
-                                                                  [:div {:class "flex-div"}
-                                                                   [:input {:type "text" :id "url" :class "input" :placeholder "Type the url here"}]
-                                                                   [:input {:type "text" :id "token" :class "input" :placeholder "X-FIGMA-TOKEN"}]]
-                                                                  [:button {:on-click #(fetch-docs! (.-value (.getElementById js/document "url")) (.-value (.getElementById js/document "token")))
-                                                                            :class "button"} "Import"]]])
-                                      [:div (when (:api @session)
-                                              (map #(render-document %) (-> @session :api :nodes vals)))]])}))
+                                     (let [hide? (:hide? @session)]
+                                       [:<>
+                                        [:div.center
+                                         [:button.primary {:class (if-not hide? "hide" "")
+                                                           :on-click #(swap! session assoc :hide? (not hide?))} "Import from API"]]
+
+                                        (when-not (:api @session) [:div.modal {:class (if hide? "hide" "")}
+                                                                   [:div {:class "dialog"}
+                                                                    [:div {:class "flex-div"}
+                                                                     [:input {:type "text" :name "url" :id "url" :class "input" :placeholder "Type the url here"}]
+                                                                     [:input {:type "text" :name "token" :id "token" :class "input" :placeholder "X-FIGMA-TOKEN"}]]
+                                                                    [:button {:on-click #(fetch-docs! (.-value (.getElementById js/document "url")) (.-value (.getElementById js/document "token")))
+                                                                              :class "button"} "Import"]]])
+                                        (println @session)
+                                        [:div (when (:api @session)
+                                                (map #(render-document %) (-> @session :api :nodes vals)))]]))}))
 
 
 (defn ^:dev/after-load init! []
