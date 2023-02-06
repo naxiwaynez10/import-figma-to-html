@@ -2,11 +2,11 @@
  :builds
         {:app
                {:target     :browser
-                :output-dir "docs/js" 
-;; :output-dir ["docs" "target/cljsbuild/public/js"]
+              ;;   :output-dir "docs/js"
+                :output-dir "target/cljsbuild/public/js"
                 :asset-path "/js"
                 :modules    {:app {:entries [import-test.app]}}
-                
+
                 :release    {}}
          :test {:target  :node-test, :output-to "target/test/test.js"
                 :autorun true}}

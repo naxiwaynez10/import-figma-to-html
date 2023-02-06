@@ -7,12 +7,13 @@
 (defonce session (r/atom {}))
 
 
-(defn fetch-docs! [val]
-  (GET (str val) {:handler (fn [response]
+(defn fetch-docs! [url token]
+  (GET (str url) {:handler (fn [response]
                              (swap! session  assoc :api response))
                   ;; :params {:ids "771:41805"}
                   :response-format :json
-                  :headers {:X-FIGMA-TOKEN (str "figd_S6tiC_L9TQDKvKq1BUrrbC4AFUglk3W2QcudPEHa")}
+                  ;; :headers {:X-FIGMA-TOKEN (str "figd_S6tiC_L9TQDKvKq1BUrrbC4AFUglk3W2QcudPEHa")}
+                  :headers {:X-FIGMA-TOKEN (str token)}
                   :keywords? true}))
 
 (defn constraint->position [{:keys [constraints]}]
@@ -78,13 +79,13 @@
          h-align :textAlignHorizontal
          v-align :textAlignVertical
          les :letterSpacing} style
-         px (str/lower-case px)
-         h-align (str/lower-case h-align)
-         v-align (str/lower-case v-align)
-         fs (str fos px)
-         ls (str les px)
-         lh (str lih px)]
-    {:font-size fs :letter-spacing ls :font-family ff :font-weight fw :line-height lh :align h-align :vertical-align v-align}))
+        px (str/lower-case px)
+        h-align (str/lower-case h-align)
+        v-align (str/lower-case v-align)
+        fs (str fos px)
+        ls (str les px)
+        lh (str lih px)]
+    {:display "inline" :font-size fs :letter-spacing ls :font-family ff :font-weight fw :line-height lh :align h-align :vertical-align v-align}))
 
 (defn convert-to-text [node])
 
@@ -103,10 +104,10 @@
         render-child-fn (fn [{:keys [children]}]
                           (if-not (empty? children)
                             (map #(type->element (assoc % :parent-x (:x parent-position) :parent-y (:y parent-position))) children)))]
-    ;; (println styles)
-    
+    (println (node->fonts node))
+
     (case type
-      "DOCUMENT" [:div {:id id}]
+      "DOCUMENT" [:<> {:id id} (render-child-fn node)]
       "COMPONENT" [:div {:key id
                          :id id
                          :style (-> styles (dissoc :top :left))} (render-child-fn node)]
@@ -115,7 +116,7 @@
                          :style styles} (render-child-fn node)]
       "TEXT" [:span {:key id
                      :id id
-                     :style (conj styles (node->fonts node))} (render-child-fn node) (:name node)]
+                     :style (apply conj styles (node->fonts node))} (render-child-fn node) (:name node)]
       "GROUP" [:div {:key id
                      :id id
                      :style styles} (render-child-fn node)]
@@ -138,24 +139,24 @@
 (defn render-document [{:keys [document]}]
   (type->element document))
 
+
+
 (defn main []
   (r/create-class {:reagent-render (fn [_]
                                      [:<>
-                                      [:h1 "Hello world"]
-                                      [:<>
-                                       [:form
-                                        [:input#input {:type "text"
-                                                       :placeholder "Type URL here..."}]
-                                        [:button#btn {:type "button"
-                                                      :on-click #(fetch-docs! (.-value (.getElementById js/document "input")))
-                                                      :style {:background-color "green"}} "Call API"]
-                                        [:button {:type "button"
-                                                  :on-click #(println (-> @session :api :nodes vals))
-                                                  :style {:background-color "green"}} "Check"]]
-                                       [:br]
-                                       [:div (when (:api @session)
-                                               (map #(render-document %) (-> @session :api :nodes vals)))]]])}))
+                                      [:div.center 
+                                       [:button.primary "Import API"]]
+                                      (when-not (:api @session) [:div {:class "modal hide"}
+                                                                 [:div {:class "dialog"}
+                                                                  [:div {:class "flex-div"}
+                                                                   [:input {:type "text" :id "url" :class "input" :placeholder "Type the url here"}]
+                                                                   [:input {:type "text" :id "token" :class "input" :placeholder "X-FIGMA-TOKEN"}]]
+                                                                  [:button {:on-click #(fetch-docs! (.-value (.getElementById js/document "url")) (.-value (.getElementById js/document "token")))
+                                                                            :class "button"} "Import"]]])
+                                      [:div (when (:api @session)
+                                              (map #(render-document %) (-> @session :api :nodes vals)))]])}))
 
 
 (defn ^:dev/after-load init! []
   (rdom/render [main] (.getElementById js/document  "app")))
+
